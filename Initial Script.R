@@ -25,7 +25,8 @@ df_stadiums=rbind(baseballr::get_game_info_sup_petti() %>%
                       5445))) %>% ##Field of Dreams
                     count(venue_id, venue_name) %>% group_by(venue_id) %>% 
                     filter(n==max(n)) %>% select(-n) %>% ungroup() %>%
-                    pair_blocking(Lahman::Parks %>% mutate(venue_name=park.name)) %>%
+                    pair_blocking(Lahman::Parks %>% 
+                                    mutate(venue_name=park.name)) %>%
                     compare_pairs(by="venue_name", default_comparator=lcs()) %>%
                     score_problink() %>% select_n_to_m() %>% link() %>%
                     filter(!is.na(venue_id) &
@@ -40,11 +41,28 @@ df_stadiums=rbind(baseballr::get_game_info_sup_petti() %>%
                   c(17, "CHI11", "Wrigley Field", "Chicago", "IL"),
                   c(2680, "SAN02", "Petco Park", "San Diego", "CA"), 
                   c(5325, "ARL03", "Globe Life Field", "Arlington", "TX")) %>% 
-  mutate(venue_id=as.numeric(venue_id)) %>% arrange(venue_id)
+  mutate(venue_id=as.numeric(venue_id)) %>% arrange(venue_id);
 
 ##30 teams
 ##2 Stadiums opened (Truist, Globe Life)
 ##matches 31 stadiums in data frame - Rogers Centre
+
+
+
+
+
+##game dataframe
+##filtered to only include regular season games
+##5 years preceding covid plus 2021 covid year
+df_games=baseballr::get_game_info_sup_petti() %>% 
+  mutate(year=lubridate::year(game_date)) %>%
+  filter(year %in% c(2015:2019, 2021) & game_type=="R") %>% 
+  semi_join(df_stadiums, by=c("venue_id")) %>% 
+  transmute(game_date, game_pk, home=str_to_upper(str_sub(game_id, 19, 21)), 
+            away=str_to_upper(str_sub(game_id, 12, 14)), venue_id, game_type, 
+            start_time, temperature, other_weather, wind, attendance);
+
+
 
 
 
@@ -81,6 +99,8 @@ rm(i, json_stadium_coords);
 
 
 
+
+
 ##rename stadiums from JSON dataset to match Lahman source
 ##Lahman chosen instead of initial baseballr because of city 
 ##sanity check on coordinates
@@ -103,14 +123,14 @@ df_stadiums=pair_blocking(
                        ifelse(venue_id==16, 33.44419, lat)), ##Turner Field
             long=ifelse(venue_id==13, -97.04348, 
                         ifelse(venue_id==16, -84.23132, long))) %>% 
-  arrange(venue_id)
+  arrange(venue_id);
 rm(x);
 
 
-library(MazamaSpatialUtils)
-setSpatialDataDir("~/Desktop")
-installSpatialData("USCensusCounties")
-loadSpatialData("USCensusCounties")
+library(MazamaSpatialUtils);
+setSpatialDataDir("~/Desktop/Github/MLB-Attendance/Census Data/");
+##installSpatialData("USCensusCounties");
+loadSpatialData("USCensusCounties");
 
 df_stadiums=df_stadiums %>% 
   left_join(as.data.frame(cbind(state=state.abb, state_full=state.name))) %>% 
@@ -128,6 +148,19 @@ df_stadiums=df_stadiums %>%
                               CBSA_title));
 rm(USCensusCounties, USCensusCounties_01, 
    USCensusCounties_02, USCensusCounties_05)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -153,17 +186,6 @@ df_covid=read.csv(paste0("https://api.covidactnow.org/v2/", time_period,
 rm(api_key, time_period)
 
 
-
-
-
-df_games=baseballr::get_game_info_sup_petti() %>% 
-  mutate(year=lubridate::year(game_date)) %>%
-  filter(year %in% c(2015:2019, 2021) & game_type!="E" & 
-           game_type!="S" & game_type!="A") %>% 
-  semi_join(df_stadiums, by=c("venue_id")) %>% 
-  transmute(game_date, game_pk, home=str_to_upper(str_sub(game_id, 19, 21)), 
-            away=str_to_upper(str_sub(game_id, 12, 14)), venue_id, game_type, 
-            start_time, temperature, other_weather, wind, attendance)
 
 
 
